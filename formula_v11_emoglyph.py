@@ -84,6 +84,13 @@ except ImportError:
     get_team_recovery = None
     calculate_recovery_coefficient = None
 
+try:
+    from odds_data_layer import OddsDataLayer
+    _HAS_ODDS_LAYER = True
+except ImportError:
+    _HAS_ODDS_LAYER = False
+    OddsDataLayer = None
+
 
 __all__ = [
     "DIMENSION_WEIGHTS",
@@ -748,6 +755,40 @@ class FormulaV11Engine:
         self.weights = DIMENSION_WEIGHTS
         self._venue_data_available = _HAS_VENUE_DATA
         self._recovery_data_available = _HAS_RECOVERY_DATA
+        self._odds_layer = None
+        self._has_odds_layer = _HAS_ODDS_LAYER
+        self._market_alpha = 0.15
+
+    def _get_odds_layer(self):
+        if self._odds_layer is None and self._has_odds_layer:
+            try:
+                self._odds_layer = OddsDataLayer(cache_duration_hours=6, jurisdiction="other")
+            except Exception:
+                self._has_odds_layer = False
+                self._odds_layer = None
+        return self._odds_layer
+
+    def _blend_with_market_consensus(self, team_a: str, team_b: str,
+                                     prob_a_win: float, draw_prob: float,
+                                     prob_b_win: float) -> Tuple[float, float, float]:
+        odds_layer = self._get_odds_layer()
+        if odds_layer is None:
+            return prob_a_win, draw_prob, prob_b_win
+        try:
+            market = odds_layer.get_market_weight_for_v11(team_a, team_b)
+            m_a = getattr(market, "home_win_probability", prob_a_win)
+            m_d = getattr(market, "draw_probability", draw_prob)
+            m_b = getattr(market, "away_win_probability", prob_b_win)
+            alpha = self._market_alpha
+            f_a = alpha * m_a + (1 - alpha) * prob_a_win
+            f_d = alpha * m_d + (1 - alpha) * draw_prob
+            f_b = alpha * m_b + (1 - alpha) * prob_b_win
+            total = f_a + f_d + f_b
+            if total > 0:
+                return f_a / total, f_d / total, f_b / total
+            return prob_a_win, draw_prob, prob_b_win
+        except Exception:
+            return prob_a_win, draw_prob, prob_b_win
 
     # ================================================================
     #  16 Dimension Scoring Functions
@@ -1274,6 +1315,11 @@ class FormulaV11Engine:
         remaining = 1.0 - draw_prob
         prob_a_win = remaining * prob_a / (prob_a + prob_b) if (prob_a + prob_b) > 0 else 0.35
         prob_b_win = remaining * prob_b / (prob_a + prob_b) if (prob_a + prob_b) > 0 else 0.35
+
+        # Backend-only market consensus blend (α=0.15) — never exposed on frontend
+        prob_a_win, draw_prob, prob_b_win = self._blend_with_market_consensus(
+            team_a, team_b, prob_a_win, draw_prob, prob_b_win
+        )
 
         return {
             "team_a": team_a,

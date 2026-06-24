@@ -623,6 +623,173 @@ def show_admin_page():
         st.session_state.admin_authed = False
         st.rerun()
 
+def show_engagement_gate():
+    """Like-Share-Subscribe gate — replaces registration form.
+
+    Honor-based: clicking any button in a category marks that step complete.
+    After all 3 steps are complete, the "Enter the App" button becomes active.
+    """
+    lang = init_language()
+    is_cn = lang in ['zh_hant', 'zh_hans']
+    theme = init_theme()
+    apply_custom_css(lang, theme)
+    tokens = get_design_tokens(lang, theme)
+
+    if 'engagement_like' not in st.session_state:
+        st.session_state.engagement_like = False
+    if 'engagement_share' not in st.session_state:
+        st.session_state.engagement_share = False
+    if 'engagement_subscribe' not in st.session_state:
+        st.session_state.engagement_subscribe = False
+
+    is_china = APP_VERSION == 'china'
+
+    app_url = "https://beeverseworldcup2026.streamlit.app/"
+    share_text_en = "🏆 Check out this AI World Cup 2026 Predictor! 17 factors, 5000+ simulations, every team's path analyzed. Free to use! 🔮⚽ #WorldCup2026 #AIPrediction"
+    share_text_hans = "🏆 2026世界杯AI预测器！17个因素、5000+次模拟、每支球队路径分析。免费使用！🔮⚽ #世界杯2026 #AI预测"
+    share_text_hant = "🏆 2026世界盃AI預測器！17個因素、5000+次模擬、每支球隊路徑分析。免費使用！🔮⚽ #世界盃2026 #AI預測"
+    if lang == 'zh_hans':
+        share_text = share_text_hans
+    elif lang == 'zh_hant':
+        share_text = share_text_hant
+    else:
+        share_text = share_text_en
+    import urllib.parse
+    share_text_encoded = urllib.parse.quote(share_text)
+    url_encoded = urllib.parse.quote(app_url)
+
+    st.markdown(f"""
+    <div style="text-align:center;padding:2rem 1rem 1rem 1rem;">
+        <h1>🏆 {"2026 世界盃 AI 預測" if is_cn else "World Cup 2026 AI Predictor"}</h1>
+        <p style="font-size:1.1rem;color:{tokens['text_secondary']};">
+            {"免費使用 — 只需支持我哋！" if is_cn else "Free access — just support us!"}
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("---")
+
+    # ── Step 1: Like ─────────────────────────────────────────────────
+    like_done = st.session_state.engagement_like
+    step1_label = ("步驟 1：👍 讚好" if is_cn else "Step 1: 👍 Like") + (" ✅" if like_done else "")
+    st.markdown(f"### {step1_label}")
+    st.caption(("點擊以下任何一個平台讚好" if is_cn else "Click Like on any platform below"))
+
+    like_cols = st.columns(4)
+    if is_china:
+        like_buttons = [
+            ("微博", "https://weibo.com/", "#E6162D"),
+            ("抖音", "https://www.douyin.com/", "#010101"),
+            ("微信", "https://weixin.qq.com/", "#07C160"),
+            ("B站", "https://www.bilibili.com/", "#FB7299"),
+        ]
+    else:
+        like_buttons = [
+            ("Twitter/X", "https://twitter.com/", "#1DA1F2"),
+            ("Facebook", "https://www.facebook.com/", "#1877F2"),
+            ("Weibo", "https://weibo.com/", "#E6162D"),
+            ("Douyin", "https://www.douyin.com/", "#010101"),
+        ]
+    for col, (name, url, color) in zip(like_cols, like_buttons):
+        with col:
+            st.markdown(
+                f'<a href="{url}" target="_blank" style="display:block;text-align:center;text-decoration:none;'
+                f'padding:10px 4px;background:{color};color:white;border-radius:6px;font-size:0.85rem;">'
+                f'👍 {name}</a>',
+                unsafe_allow_html=True,
+            )
+    if st.button(("我已讚好 ✓" if is_cn else "I Liked ✓"), key="confirm_like", use_container_width=True):
+        st.session_state.engagement_like = True
+        st.rerun()
+
+    st.markdown("---")
+
+    # ── Step 2: Share ────────────────────────────────────────────────
+    share_done = st.session_state.engagement_share
+    step2_label = ("步驟 2：📤 分享" if is_cn else "Step 2: 📤 Share") + (" ✅" if share_done else "")
+    st.markdown(f"### {step2_label}")
+    st.caption(("分享到任何平台" if is_cn else "Share with your friends"))
+
+    share_cols = st.columns(4)
+    if is_china:
+        share_buttons = [
+            ("微博", f"https://service.weibo.com/share/share.php?url={url_encoded}&title={share_text_encoded}", "#E6162D"),
+            ("微信\n(複製)", f"javascript:void(0)", "#07C160"),
+            ("抖音", "https://www.douyin.com/", "#010101"),
+            ("QQ", f"https://connect.qq.com/widget/shareqq/index.html?url={url_encoded}&title={share_text_encoded}", "#12B7F5"),
+        ]
+    else:
+        share_buttons = [
+            ("Twitter/X", f"https://twitter.com/intent/tweet?url={url_encoded}&text={share_text_encoded}", "#1DA1F2"),
+            ("Facebook", f"https://www.facebook.com/sharer/sharer.php?u={url_encoded}", "#1877F2"),
+            ("WhatsApp", f"https://wa.me/?text={share_text_encoded}%20{url_encoded}", "#25D366"),
+            ("WeChat\n(複製)", "javascript:void(0)", "#07C160"),
+        ]
+    for col, (name, url, color) in zip(share_cols, share_buttons):
+        with col:
+            display_name = name.replace("\n", "<br>")
+            st.markdown(
+                f'<a href="{url}" target="_blank" style="display:block;text-align:center;text-decoration:none;'
+                f'padding:10px 4px;background:{color};color:white;border-radius:6px;font-size:0.85rem;">'
+                f'📤 {display_name}</a>',
+                unsafe_allow_html=True,
+            )
+    st.caption(f"📋 {share_text}")
+    if st.button(("我已分享 ✓" if is_cn else "I Shared ✓"), key="confirm_share", use_container_width=True):
+        st.session_state.engagement_share = True
+        st.rerun()
+
+    st.markdown("---")
+
+    # ── Step 3: Subscribe ────────────────────────────────────────────
+    sub_done = st.session_state.engagement_subscribe
+    step3_label = ("步驟 3：🔔 訂閱/關注" if is_cn else "Step 3: 🔔 Subscribe/Follow") + (" ✅" if sub_done else "")
+    st.markdown(f"### {step3_label}")
+    st.caption(("訂閱或關注任何平台" if is_cn else "Subscribe or Follow on any platform"))
+
+    sub_cols = st.columns(4)
+    if is_china:
+        sub_buttons = [
+            ("微博", "https://weibo.com/", "#E6162D"),
+            ("微信", "https://weixin.qq.com/", "#07C160"),
+            ("抖音", "https://www.douyin.com/", "#010101"),
+            ("B站", "https://www.bilibili.com/", "#FB7299"),
+        ]
+    else:
+        sub_buttons = [
+            ("Twitter/X", "https://twitter.com/", "#1DA1F2"),
+            ("YouTube", "https://www.youtube.com/", "#FF0000"),
+            ("WeChat", "https://weixin.qq.com/", "#07C160"),
+            ("Douyin", "https://www.douyin.com/", "#010101"),
+        ]
+    for col, (name, url, color) in zip(sub_cols, sub_buttons):
+        with col:
+            st.markdown(
+                f'<a href="{url}" target="_blank" style="display:block;text-align:center;text-decoration:none;'
+                f'padding:10px 4px;background:{color};color:white;border-radius:6px;font-size:0.85rem;">'
+                f'🔔 {name}</a>',
+                unsafe_allow_html=True,
+            )
+    if st.button(("我已訂閱 ✓" if is_cn else "I Subscribed ✓"), key="confirm_subscribe", use_container_width=True):
+        st.session_state.engagement_subscribe = True
+        st.rerun()
+
+    st.markdown("---")
+
+    # ── Enter button ─────────────────────────────────────────────────
+    all_done = st.session_state.engagement_like and st.session_state.engagement_share and st.session_state.engagement_subscribe
+    if all_done:
+        st.success("🎉 " + ("多謝支持！現在可以進入應用。" if is_cn else "Thank you for your support! You can now enter the app."))
+        if st.button("✅ " + ("進入應用" if is_cn else "Enter the App"), key="enter_app", use_container_width=True, type="primary"):
+            st.session_state.registered = True
+            st.rerun()
+    else:
+        remaining = 3 - sum([st.session_state.engagement_like, st.session_state.engagement_share, st.session_state.engagement_subscribe])
+        st.info(("請完成所有 3 個步驟以進入應用" if is_cn else "Please complete all 3 steps to enter")
+                + f" ({remaining} " + ("步剩餘" if is_cn else "remaining") + ")")
+        st.button("✅ " + ("進入應用" if is_cn else "Enter the App"), key="enter_app_disabled", disabled=True, use_container_width=True)
+
+
 def main():
     if st.session_state.get('show_admin', False):
         show_admin_page()
@@ -641,9 +808,10 @@ def main():
     if 'user_jurisdiction' not in st.session_state:
         st.session_state.user_jurisdiction = 'other'
 
-    # Auto-register: no gate page, go straight to app
+    # Engagement gate: user must complete Like/Share/Subscribe before entering
     if not st.session_state.registered:
-        st.session_state.registered = True
+        show_engagement_gate()
+        return
 
     apply_custom_css(lang, theme)
 
